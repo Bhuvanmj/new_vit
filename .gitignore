@@ -1,3 +1,4 @@
 .env
+vit_brain_tumor_5class.pth
 __pycache__/
 *.pyc
