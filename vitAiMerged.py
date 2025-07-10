@@ -11,13 +11,11 @@ import requests
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
-# 🌐 Get chatbot API URL from environment
-API_URL ="https://chatbot-backend-aytt.onrender.com"
+API_URL = "https://chatbot-backend-aytt.onrender.com"
 
-# 🎨 Page Configuration
+# Page Config
 st.set_page_config(page_title="🧠 Brain Tumor Classifier", page_icon="🧠", layout="centered")
 
-# 🏷️ Custom CSS
 st.markdown("""
     <style>
         .main {
@@ -38,15 +36,27 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🧠 App Title
 st.markdown("<h1>🧠 Brain Tumor Classification</h1>", unsafe_allow_html=True)
 st.markdown("<h3>Using Vision Transformer (ViT)</h3>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# 🚀 Load model and processor
+# ✅ Download model if needed
+def download_model_if_needed(model_path, url):
+    if not os.path.exists(model_path):
+        with st.spinner("🔄 Downloading model from Hugging Face..."):
+            r = requests.get(url, allow_redirects=True)
+            with open(model_path, 'wb') as f:
+                f.write(r.content)
+        st.success("✅ Model download complete!")
+
+# Load model
 @st.cache_resource
 def load_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model_path = "vit_brain_tumor_5class.pth"
+    model_url = "https://huggingface.co/bhuvan77/vit-model/resolve/main/vit_brain_tumor_5class.pth"
+    download_model_if_needed(model_path, model_url)
 
     model = AutoModelForImageClassification.from_pretrained(
         "google/vit-base-patch16-224",
@@ -56,16 +66,6 @@ def load_model():
         ignore_mismatched_sizes=True
     ).to(device)
 
-    model_path = "vit_brain_tumor_5class.pth"
-
-    # ✅ Download from Hugging Face if not found
-    if not os.path.exists(model_path):
-        with st.spinner("🔄 Downloading model from Hugging Face..."):
-            url = "https://huggingface.co/bhuvan77/vit-model/resolve/main/vit_brain_tumor_5class.pth"
-            r = requests.get(url, allow_redirects=True)
-            open(model_path, 'wb').write(r.content)
-        st.success("✅ Model download complete!")
-
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 
@@ -74,7 +74,7 @@ def load_model():
 
 model, processor, device = load_model()
 
-# 📤 Upload Image
+# Upload image
 st.markdown("### 📤 Upload a Brain MRI Image")
 uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
 
@@ -97,13 +97,11 @@ if uploaded_file:
     confidence = probs[0][predicted_class].item()
     predicted_label = label
 
-    # 🎯 Result Display
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("### ✅ Classification Result")
     st.success(f"🎯 **Predicted Class:** `{label.upper()}`")
     st.info(f"📊 **Confidence Score:** `{confidence:.2f}`")
 
-    # 📊 Confidence Table
     st.markdown("### 🔍 Confidence Scores for All Classes")
     conf_df = pd.DataFrame({
         "Tumor Type": [model.config.id2label[i].upper() for i in range(len(probs[0]))],
@@ -111,7 +109,6 @@ if uploaded_file:
     })
     st.dataframe(conf_df.set_index("Tumor Type").sort_values("Confidence", ascending=False))
 
-    # 📈 Pie Chart
     st.markdown("### 📊 Visual Confidence Chart")
     fig = go.Figure(
         data=[go.Pie(
@@ -133,7 +130,6 @@ if uploaded_file:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # 💬 AI ChatBot
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("## 💬 Ask Anything About the Disease")
 
@@ -142,9 +138,9 @@ if uploaded_file:
         system_msg = {
             "role": "system",
             "content": f"The user uploaded a brain MRI image. The tumor was classified as **{predicted_label.upper()}** "
-                       f"with the following confidence scores: " +
+                       f"with confidence scores: " +
                        ", ".join([f"{row['Tumor Type']}: {row['Confidence']}" for _, row in conf_df.iterrows()]) +
-                       ". Based on this, be prepared to answer medical, precautionary, or follow-up questions."
+                       ". Be prepared to answer medical, precautionary, or follow-up questions."
         }
         st.session_state.chat_history.append(system_msg)
         st.session_state.last_image_name = uploaded_file.name
