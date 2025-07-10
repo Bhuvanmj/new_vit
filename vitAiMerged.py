@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 # 🌐 Get chatbot API URL from environment
-API_URL = os.getenv("API_URL")
+API_URL ="https://chatbot-backend-aytt.onrender.com"
 
 # 🎨 Page Configuration
 st.set_page_config(page_title="🧠 Brain Tumor Classifier", page_icon="🧠", layout="centered")
